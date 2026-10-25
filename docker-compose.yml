@@ -1,0 +1,23 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: teste_postgres_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: fintech_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./docs/diagramas/q2-modelagem-er/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+
+  app:
+    build: .
+    container_name: teste_node_app
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/fintech_db
+    depends_on:
+      - db

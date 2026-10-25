@@ -1,0 +1,48 @@
+@startuml
+title Diagrama de Sequência — Fluxo de Checkout (React -> API -> RabbitMQ -> Worker -> PostgreSQL)
+autonumber
+
+participant "React\n(Frontend SPA)" as React
+participant "API\n(Backend Node.js)" as API
+queue "RabbitMQ\n(Message Broker)" as RMQ
+participant "Worker\n(Background Consumer)" as Worker
+database "PostgreSQL\n(Banco de Dados)" as DB
+
+== Fase 1: Recebimento Síncrono e Enfileiramento Rápido ==
+
+React -> API : POST /checkout\n{ userId, items, paymentData }
+activate API
+
+API -> API : Valida payload e gera protocolo (orderId)
+API ->> RMQ : Publish mensagem na fila "checkout_queue"\n{ orderId, userId, items, paymentData }
+activate RMQ
+
+API --> React : HTTP 202 Accepted\n{ orderId, status: "PROCESSING", message: "Pedido em processamento" }
+deactivate API
+
+== Fase 2: Processamento Assíncrono pelo Worker ==
+
+RMQ ->> Worker : Consume mensagem da "checkout_queue"
+activate Worker
+
+Worker -> DB : BEGIN TRANSACTION
+activate DB
+
+Worker -> DB : INSERT INTO orders (id, user_id, status) VALUES ($1, $2, 'CONFIRMED')
+Worker -> DB : INSERT INTO transactions (account_id, type, amount) VALUES ($1, 'DEBIT', $2)
+Worker -> DB : UPDATE products SET stock = stock - $1 WHERE id = $2
+
+alt Sucesso na Persistência
+    Worker -> DB : COMMIT
+    DB --> Worker : OK (Dados persistidos)
+    Worker ->> RMQ : basic.ack() (Confirma e remove da fila)
+else Erro de Negócio ou Falha no Banco
+    Worker -> DB : ROLLBACK
+    DB --> Worker : Alterações desfeitas
+    Worker ->> RMQ : basic.nack(requeue=false) (Envia para Dead Letter Queue)
+end
+
+deactivate DB
+deactivate Worker
+deactivate RMQ
+@enduml

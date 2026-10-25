@@ -1,0 +1,33 @@
+@startuml
+title Fluxo Simples de Login: Cliente -> API Node.js -> PostgreSQL -> JWT
+autonumber
+skinparam responseMessageBelowArrow true
+
+actor "Cliente\n(Web / Mobile)" as Client
+participant "API Node.js\n(Express / Fastify)" as API
+database "PostgreSQL\n(Tabela users)" as DB
+participant "Módulo JWT\n(jsonwebtoken)" as JWT
+
+Client -> API : POST /login\n{ "email": "dev@empresa.com", "password": "***" }
+activate API
+
+API -> DB : SELECT id, email, password_hash\nFROM users WHERE email = $1
+activate DB
+DB --> API : Retorna registro do usuário (ou null)
+deactivate DB
+
+API -> API : Valida hash da senha\nbcrypt.compare(password, user.password_hash)
+
+alt Usuário existe E senha confere
+    API -> JWT : jwt.sign({ sub: user.id, email: user.email }, JWT_SECRET, { expiresIn: '1h' })
+    activate JWT
+    JWT --> API : Retorna token assinado (header.payload.signature)
+    deactivate JWT
+
+    API --> Client : HTTP 200 OK\n{ "accessToken": "eyJhbGciOiJIUzI1NiIs..." }
+else Usuário não encontrado OU senha incorreta
+    API --> Client : HTTP 401 Unauthorized\n{ "error": "Credenciais inválidas" }
+end
+
+deactivate API
+@enduml

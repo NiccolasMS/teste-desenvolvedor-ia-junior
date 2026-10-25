@@ -1,0 +1,51 @@
+========================================================================================
+QUESTÃO 3: DIAGRAMA DE SEQUÊNCIA — FLUXO DE CHECKOUT
+(React -> API -> RabbitMQ -> Worker -> PostgreSQL)
+========================================================================================
+
++---------+          +----------+          +----------+          +----------+          +------------+
+|  React  |          |   API    |          | RabbitMQ |          |  Worker  |          | PostgreSQL |
++----+----+          +----+-----+          +----+-----+          +----+-----+          +-----+------+
+     |                    |                     |                     |                      |
+     | === FASE 1: REQUISIÇÃO SÍNCRONA (RESPOSTA RÁPIDA AO USUÁRIO) ===                      |
+     |                    |                     |                     |                      |
+     | 1. POST /checkout  |                     |                     |                      |
+     |  { items, payment }|                     |                     |                      |
+     |------------------->|                     |                     |                      |
+     |                    | 2. Valida payload e |                     |                      |
+     |                    |    gera orderId     |                     |                      |
+     |                    |---------+           |                     |                      |
+     |                    |<--------+           |                     |                      |
+     |                    |                     |                     |                      |
+     |                    | 3. Publica evento   |                     |                      |
+     |                    |   "checkout.created"|                     |                      |
+     |                    |-------------------->|                     |                      |
+     |                    |                     |                     |                      |
+     | 4. HTTP 202 Accepted                     |                     |                      |
+     |  { orderId, status: "PROCESSING" }       |                     |                      |
+     |<-------------------|                     |                     |                      |
+     |                    |                     |                     |                      |
+     | === FASE 2: PROCESSAMENTO ASSÍNCRONO EM BACKGROUND (FILA -> WORKER -> BANCO) ===      |
+     |                    |                     |                     |                      |
+     |                    |                     | 5. Entrega mensagem |                      |
+     |                    |                     |    da fila (consume)|                      |
+     |                    |                     |-------------------->|                      |
+     |                    |                     |                     |                      |
+     |                    |                     |                     | 6. BEGIN TRANSACTION |
+     |                    |                     |                     |--------------------->|
+     |                    |                     |                     |                      |
+     |                    |                     |                     | 7. INSERT pedido /   |
+     |                    |                     |                     |    INSERT transação /|
+     |                    |                     |                     |    UPDATE estoque    |
+     |                    |                     |                     |--------------------->|
+     |                    |                     |                     |                      |
+     |                    |                     |                     | 8. COMMIT            |
+     |                    |                     |                     |--------------------->|
+     |                    |                     |                     |                      |
+     |                    |                     |                     | 9. Confirma gravação |
+     |                    |                     |                     |<---------------------|
+     |                    |                     |                     |                      |
+     |                    |                     | 10. Envia ACK       |                      |
+     |                    |                     | (remove msg da fila)|                      |
+     |                    |                     |<--------------------|                      |
++----+----+          +----+-----+          +----+-----+          +----+-----+          +-----+------+

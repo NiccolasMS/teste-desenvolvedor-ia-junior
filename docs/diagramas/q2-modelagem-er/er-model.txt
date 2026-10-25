@@ -1,0 +1,54 @@
+========================================================================================
+QUESTÃO 2: MODELAGEM ER (Entidades: User, Account, Transaction com PK e FK)
+========================================================================================
+
++-----------------------------------+
+|               USER                |
+|          (Tabela: users)          |
++-----------------------------------+
+| [PK] id             : SERIAL/UUID |
+|      name           : VARCHAR(120)|
+| [UK] email          : VARCHAR(160)|
+|      password_hash  : VARCHAR(255)|
+|      created_at     : TIMESTAMPTZ |
++-----------------+-----------------+
+                  |
+                  | 1 (Um Usuário)
+                  |
+                  | possui (Relacionamento 1:N)
+                  |
+                  | 0..N (Uma ou Várias Contas)
+                  v
++-----------------+-----------------+
+|              ACCOUNT              |
+|         (Tabela: accounts)        |
++-----------------------------------+
+| [PK] id             : SERIAL/UUID |
+| [FK] user_id        : INT/UUID    | ---> Referencia USER(id)
+| [UK] account_number : VARCHAR(20) |
+|      balance        : NUMERIC(15,2)|
+|      created_at     : TIMESTAMPTZ |
++-----------------+-----------------+
+                  |
+                  | 1 (Uma Conta)
+                  |
+                  | registra (Relacionamento 1:N)
+                  |
+                  | 0..N (Zero ou Várias Transações)
+                  v
++-----------------+-----------------+
+|            TRANSACTION            |
+|       (Tabela: transactions)      |
++-----------------------------------+
+| [PK] id             : SERIAL/UUID |
+| [FK] account_id     : INT/UUID    | ---> Referencia ACCOUNT(id)
+|      type           : VARCHAR(20) | ---> ('CREDIT' ou 'DEBIT')
+|      amount         : NUMERIC(15,2)|
+|      description    : VARCHAR(255)|
+|      created_at     : TIMESTAMPTZ |
++-----------------------------------+
+
+Legenda:
+- [PK] Primary Key (Chave Primária)
+- [FK] Foreign Key (Chave Estrangeira)
+- [UK] Unique Key (Restrição de Unicidade)

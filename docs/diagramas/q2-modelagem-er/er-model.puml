@@ -1,0 +1,37 @@
+@startuml
+title Modelo Entidade-Relacionamento (ER) — User, Account e Transaction
+hide circle
+skinparam linetype ortho
+
+entity "User (users)" as User {
+  * **id** : SERIAL <<PK>>
+  --
+  * name : VARCHAR(120)
+  * email : VARCHAR(160) <<UK>>
+  * password_hash : VARCHAR(255)
+  * created_at : TIMESTAMPTZ
+}
+
+entity "Account (accounts)" as Account {
+  * **id** : SERIAL <<PK>>
+  --
+  * **user_id** : INTEGER <<FK>>
+  * account_number : VARCHAR(20) <<UK>>
+  * balance : NUMERIC(15,2)
+  * created_at : TIMESTAMPTZ
+}
+
+entity "Transaction (transactions)" as Transaction {
+  * **id** : SERIAL <<PK>>
+  --
+  * **account_id** : INTEGER <<FK>>
+  * type : VARCHAR(20)
+  * amount : NUMERIC(15,2)
+  * description : VARCHAR(255)
+  * created_at : TIMESTAMPTZ
+}
+
+' Cardinalidades (Pé de Galinha / Crow's Foot)
+User ||--o{ Account : "possui (1:N)"
+Account ||--o{ Transaction : "realiza/registra (1:N)"
+@enduml
